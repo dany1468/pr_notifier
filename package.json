@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@octokit/rest": "^15.9.1",
     "@slack/client": "^4.3.1"
   }
 }
