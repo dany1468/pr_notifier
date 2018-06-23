@@ -12,5 +12,8 @@
     "@octokit/rest": "^15.9.1",
     "@slack/client": "^4.3.1",
     "dotenv": "^6.0.0"
+  },
+  "devDependencies": {
+    "local-repl": "^4.0.0"
   }
 }
