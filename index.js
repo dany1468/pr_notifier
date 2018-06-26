@@ -53,12 +53,14 @@ async function main() {
   });
 
   const message = notifyingContents.map(c => {
+    const parsed = parseIssueURL(c.pr.url);
+
     return {
-      title: c.pr.title,
-      title_link: c.pr.url,
+      title: `${c.pr.title} ( ${parsed.repo} #${parsed.number} )`,
+      title_link: c.pr.html_url,
       fields: [{
         title: ':clap: レビュー :sumi:',
-        value: c.approved.map(a => a.user).join(", ")
+        value: c.approved.length > 0 ? c.approved.map(a => a.user).join(", ") : 'まだレビュー完了してる人はいないよ'
       }]
     }
   });
