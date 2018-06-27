@@ -4,8 +4,8 @@ const github_token = process.env.GITHUB_TOKEN;
 const octokit = require('@octokit/rest')();
 
 octokit.authenticate({
-    type: 'token',
-    token: github_token
+  type: 'token',
+  token: github_token
 });
 
 module.exports = {
