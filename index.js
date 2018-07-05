@@ -37,7 +37,7 @@ async function fetchApprovedReviews(pr) {
 }
 
 async function main() {
-  const issues = await octokit.search.issues({q: process.env.QUERY_FOR_SEARCHING_ISSUES});
+  const issues = await octokit.search.issues({q: process.env.QUERY_FOR_SEARCHING_ISSUES, sort: 'created', order: 'asc'});
 
   if (issues.data.total_count = 0) return [];
 
