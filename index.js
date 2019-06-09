@@ -3,12 +3,11 @@ require('dotenv').config();
 const {IncomingWebhook} = require('@slack/client');
 const slack_url = process.env.SLACK_WEBHOOK_URL;
 const webhook = new IncomingWebhook(slack_url);
-const octokit = require('@octokit/rest')();
+const Octokit = require('@octokit/rest');
 const github_token = process.env.GITHUB_TOKEN;
 
-octokit.authenticate({
-  type: 'token',
-  token: github_token
+const octokit = new Octokit({
+  auth: 'token ' + github_token
 });
 
 const parseIssueURL = (url) => {
@@ -19,7 +18,7 @@ const parseIssueURL = (url) => {
     return {
       owner: match[1],
       repo: match[2],
-      number: match[3]
+      pull_number: match[3]
     };
   }
 };
@@ -28,16 +27,22 @@ async function asyncMap(array, operation) {
   return Promise.all(array.map(async item => await operation(item)));
 }
 
+async function sleep(msec) {
+  return new Promise(resolve => setTimeout(resolve, msec));
+}
+
 async function fetchApprovedReviews(pr) {
   const parsed = parseIssueURL(pr.url);
 
-  const result = await octokit.pullRequests.getReviews({owner: parsed.owner, repo: parsed.repo, number: parsed.number});
+  const result = await octokit.pullRequests.listReviews({owner: parsed.owner, repo: parsed.repo, pull_number: parsed.pull_number});
 
   return result.data.filter(review => review.state === 'APPROVED');
 }
 
 async function main() {
-  const issues = await octokit.search.issues({q: process.env.QUERY_FOR_SEARCHING_ISSUES, sort: 'created', order: 'asc'});
+  const separatePost = process.argv.slice(2).includes('-separate');
+
+  const issues = await octokit.search.issuesAndPullRequests({q: process.env.QUERY_FOR_SEARCHING_ISSUES, sort: 'created', order: 'asc'});
 
   if (issues.data.total_count = 0) return [];
 
@@ -56,7 +61,7 @@ async function main() {
     const parsed = parseIssueURL(c.pr.url);
 
     return {
-      title: `${c.pr.title} ( ${parsed.repo} #${parsed.number} )`,
+      title: `${c.pr.title} ( ${parsed.repo} #${parsed.pull_number} )`,
       title_link: c.pr.html_url,
       fields: [{
         title: ':clap: レビュー :sumi:',
@@ -65,7 +70,12 @@ async function main() {
     }
   });
 
-  webhook.send({text: '<!here> アクティブな PR です。お手すきでレビューをお願いしますー :pray:', attachments: message});
+  const messages = separatePost ? message.map(m => [m]) : [message];
+  for (var i = 0; i < messages.length; i++) {
+    if (i > 0) await sleep(1000);
+    let text = i == 0 ? '<!here> アクティブな PR です。お手すきでレビューをお願いしますー :pray:' : '';
+    webhook.send({text: text, attachments: messages[i]});
+  }
 }
 
 main()
