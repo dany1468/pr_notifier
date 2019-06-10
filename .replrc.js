@@ -1,11 +1,10 @@
 require('dotenv').config();
 
 const github_token = process.env.GITHUB_TOKEN;
-const octokit = require('@octokit/rest')();
+const Octokit = require('@octokit/rest');
 
-octokit.authenticate({
-  type: 'token',
-  token: github_token
+const octokit = new Octokit({
+  auth: 'token ' + github_token
 });
 
 module.exports = {
