@@ -39,6 +39,12 @@ async function fetchReviews(pr) {
   return result.data.filter(review => review.state === 'APPROVED' ||  review.state === 'CHANGES_REQUESTED' ||  review.state === 'COMMENTED');
 }
 
+function filterState(reviews, state) {
+  reviews.filter(review => review.state === state).map(review => {
+    return {user: review.user.login}
+  });
+}
+
 async function main() {
   const separatePost = process.argv.slice(2).includes('-separate');
 
@@ -51,9 +57,7 @@ async function main() {
 
     return {
       pr: pr,
-      approved: reviews.filter(review => review.state === 'APPROVED').map(review => {
-        return {user: review.user.login}
-      }),
+      approved: filterState(reviews, 'APPROVED'),
       requested: reviews.filter(review => review.state === 'CHANGES_REQUESTED').map(review => {
         return {user: review.user.login}
       }),
