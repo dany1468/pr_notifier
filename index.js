@@ -39,8 +39,8 @@ async function fetchReviews(pr) {
   return result.data.filter(review => review.state === 'APPROVED' ||  review.state === 'CHANGES_REQUESTED' ||  review.state === 'COMMENTED');
 }
 
-async function filterState(reviews, state) {
-  reviews.filter(review => review.state === state).map(review => {
+async function filterState(reviews, targetState) {
+  reviews.filter(review => review.state === targetState).map(review => {
     return {user: review.user.login}
   });
 }
@@ -54,10 +54,11 @@ async function main() {
 
   const notifyingContents = await asyncMap(issues.data.items, async pr => {
     const reviews = await fetchReviews(pr);
+    const approvedUser = await filterState(reviews, 'APPROVED');
 
     return {
       pr: pr,
-      approved: await filterState(reviews, 'APPROVED'),
+      approved: approvedUser,
       requested: reviews.filter(review => review.state === 'CHANGES_REQUESTED').map(review => {
         return {user: review.user.login}
       }),
