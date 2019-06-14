@@ -31,12 +31,18 @@ async function sleep(msec) {
   return new Promise(resolve => setTimeout(resolve, msec));
 }
 
-async function fetchApprovedReviews(pr) {
+async function fetchReviews(pr) {
   const parsed = parseIssueURL(pr.url);
 
   const result = await octokit.pullRequests.listReviews({owner: parsed.owner, repo: parsed.repo, pull_number: parsed.pull_number});
 
-  return result.data.filter(review => review.state === 'APPROVED');
+  return result.data.filter(review => review.state === 'APPROVED' ||  review.state === 'CHANGES_REQUESTED' ||  review.state === 'COMMENTED');
+}
+
+async function filterState(reviews, targetState) {
+  reviews.filter(review => review.state === targetState).map(review => {
+    return {user: review.user.login}
+  });
 }
 
 async function main() {
@@ -47,11 +53,16 @@ async function main() {
   if (issues.data.total_count = 0) return [];
 
   const notifyingContents = await asyncMap(issues.data.items, async pr => {
-    const approvedReviews = await fetchApprovedReviews(pr);
+    const reviews = await fetchReviews(pr);
+    const approvedUser = await filterState(reviews, 'APPROVED');
 
     return {
       pr: pr,
-      approved: approvedReviews.map(review => {
+      approved: approvedUser,
+      requested: reviews.filter(review => review.state === 'CHANGES_REQUESTED').map(review => {
+        return {user: review.user.login}
+      }),
+      commented: reviews.filter(review => review.state === 'COMMENTED').map(review => {
         return {user: review.user.login}
       })
     }
@@ -64,8 +75,10 @@ async function main() {
       title: `${c.pr.title} ( ${parsed.repo} #${parsed.pull_number} )`,
       title_link: c.pr.html_url,
       fields: [{
-        title: ':clap: レビュー :sumi:',
-        value: c.approved.length > 0 ? c.approved.map(a => a.user).join(", ") : 'まだレビュー完了してる人はいないよ'
+        title: (c.approved.length >= 2 ? 'Merge :ok_woman:' : ''),
+        value: 'Commented: ' + (c.commented.length > 0 ? c.commented.map(a => a.user).filter(function (x, i, self) {return self.indexOf(x) === i;}).join(", ") : 'none')
+          + '\nRequested: ' + (c.requested.length > 0 ? c.requested.map(a => a.user).filter(function (x, i, self) {return self.indexOf(x) === i;}).join(", ") : 'none')
+          + '\nApproved: ' + (c.approved.length > 0 ? c.approved.map(a => a.user).filter(function (x, i, self) {return self.indexOf(x) === i;}).join(", ") : 'none :fire:')
       }]
     }
   });
