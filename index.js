@@ -76,6 +76,7 @@ async function main() {
 
   const message = notifyingContents.map(c => {
     const parsed = parseIssueURL(c.pr.url);
+    const createdUserString = c.pr.user.login;
     const commentedUserString = convertUserString(c.commented, false);
     const requestedUserString = convertUserString(c.requested, false);
     const approvedUserString = convertUserString(c.approved, true);
@@ -85,7 +86,8 @@ async function main() {
       title_link: c.pr.html_url,
       fields: [{
         title: (c.approved.length >= 2 ? 'Merge :ok_woman:' : ''),
-        value: 'Commented: ' + commentedUserString
+        value: 'Created: ' + createdUserString
+          + '\nCommented: ' + commentedUserString
           + '\nRequested: ' + requestedUserString
           + '\nApproved: ' + approvedUserString
       }]
