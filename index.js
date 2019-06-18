@@ -45,6 +45,14 @@ function filterState(reviews, targetState) {
   });
 }
 
+function convertUserString(reviews, addFire) {
+  const userString = (reviews.length > 0 ? reviews.map(a => a.user).filter(function (x, i, self) {return self.indexOf(x) === i;}).join(", ") : 'none');
+  if (addFire && reviews.length <= 1) {
+    return userString + (reviews.length == 1 ? ' :fire:' : ' :fire: :fire:');
+  }
+  return userString;
+}
+
 async function main() {
   const separatePost = process.argv.slice(2).includes('-separate');
 
@@ -55,30 +63,31 @@ async function main() {
   const notifyingContents = await asyncMap(issues.data.items, async pr => {
     const reviews = await fetchReviews(pr);
     const approvedUser = filterState(reviews, 'APPROVED');
+    const requestedUser = filterState(reviews, 'CHANGES_REQUESTED');
+    const commentedUser = filterState(reviews, 'COMMENTED');
 
     return {
       pr: pr,
       approved: approvedUser,
-      requested: reviews.filter(review => review.state === 'CHANGES_REQUESTED').map(review => {
-        return {user: review.user.login}
-      }),
-      commented: reviews.filter(review => review.state === 'COMMENTED').map(review => {
-        return {user: review.user.login}
-      })
+      requested: requestedUser,
+      commented: commentedUser
     }
   });
 
   const message = notifyingContents.map(c => {
     const parsed = parseIssueURL(c.pr.url);
+    const commentedUserString = convertUserString(c.commented, false);
+    const requestedUserString = convertUserString(c.requested, false);
+    const approvedUserString = convertUserString(c.approved, true);
 
     return {
       title: `${c.pr.title} ( ${parsed.repo} #${parsed.pull_number} )`,
       title_link: c.pr.html_url,
       fields: [{
         title: (c.approved.length >= 2 ? 'Merge :ok_woman:' : ''),
-        value: 'Commented: ' + (c.commented.length > 0 ? c.commented.map(a => a.user).filter(function (x, i, self) {return self.indexOf(x) === i;}).join(", ") : 'none')
-          + '\nRequested: ' + (c.requested.length > 0 ? c.requested.map(a => a.user).filter(function (x, i, self) {return self.indexOf(x) === i;}).join(", ") : 'none')
-          + '\nApproved: ' + (c.approved.length > 0 ? c.approved.map(a => a.user).filter(function (x, i, self) {return self.indexOf(x) === i;}).join(", ") : 'none :fire:')
+        value: 'Commented: ' + commentedUserString
+          + '\nRequested: ' + requestedUserString
+          + '\nApproved: ' + approvedUserString
       }]
     }
   });
