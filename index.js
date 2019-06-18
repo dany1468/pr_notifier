@@ -36,7 +36,7 @@ async function fetchReviews(pr) {
 
   const result = await octokit.pullRequests.listReviews({owner: parsed.owner, repo: parsed.repo, pull_number: parsed.pull_number});
 
-  return result.data.filter(review => review.state === 'APPROVED' ||  review.state === 'CHANGES_REQUESTED' ||  review.state === 'COMMENTED');
+  return result.data.filter(review => review.state === 'APPROVED' || review.state === 'COMMENTED');
 }
 
 function filterState(reviews, targetState) {
@@ -63,13 +63,11 @@ async function main() {
   const notifyingContents = await asyncMap(issues.data.items, async pr => {
     const reviews = await fetchReviews(pr);
     const approvedUser = filterState(reviews, 'APPROVED');
-    const requestedUser = filterState(reviews, 'CHANGES_REQUESTED');
     const commentedUser = filterState(reviews, 'COMMENTED');
 
     return {
       pr: pr,
       approved: approvedUser,
-      requested: requestedUser,
       commented: commentedUser
     }
   });
@@ -78,7 +76,6 @@ async function main() {
     const parsed = parseIssueURL(c.pr.url);
     const createdUserString = c.pr.user.login;
     const commentedUserString = convertUserString(c.commented, false);
-    const requestedUserString = convertUserString(c.requested, false);
     const approvedUserString = convertUserString(c.approved, true);
 
     return {
@@ -88,7 +85,6 @@ async function main() {
         title: (c.approved.length >= 2 ? 'Merge :ok_woman:' : ''),
         value: 'Created: ' + createdUserString
           + '\nCommented: ' + commentedUserString
-          + '\nRequested: ' + requestedUserString
           + '\nApproved: ' + approvedUserString
       }]
     }
