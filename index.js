@@ -36,13 +36,21 @@ async function fetchReviews(pr) {
 
   const result = await octokit.pullRequests.listReviews({owner: parsed.owner, repo: parsed.repo, pull_number: parsed.pull_number});
 
-  return result.data.filter(review => review.state === 'APPROVED' ||  review.state === 'CHANGES_REQUESTED' ||  review.state === 'COMMENTED');
+  return result.data.filter(review => review.state === 'APPROVED' || review.state === 'COMMENTED');
 }
 
 function filterState(reviews, targetState) {
   return reviews.filter(review => review.state === targetState).map(review => {
     return {user: review.user.login}
   });
+}
+
+function convertUserString(reviews, addFire) {
+  const userString = (reviews.length > 0 ? reviews.map(a => a.user).filter(function (x, i, self) {return self.indexOf(x) === i;}).join(", ") : 'none');
+  if (addFire && reviews.length <= 1) {
+    return userString + (reviews.length == 1 ? ' :fire:' : ' :fire: :fire:');
+  }
+  return userString;
 }
 
 async function main() {
@@ -55,30 +63,29 @@ async function main() {
   const notifyingContents = await asyncMap(issues.data.items, async pr => {
     const reviews = await fetchReviews(pr);
     const approvedUser = filterState(reviews, 'APPROVED');
+    const commentedUser = filterState(reviews, 'COMMENTED');
 
     return {
       pr: pr,
       approved: approvedUser,
-      requested: reviews.filter(review => review.state === 'CHANGES_REQUESTED').map(review => {
-        return {user: review.user.login}
-      }),
-      commented: reviews.filter(review => review.state === 'COMMENTED').map(review => {
-        return {user: review.user.login}
-      })
+      commented: commentedUser
     }
   });
 
   const message = notifyingContents.map(c => {
     const parsed = parseIssueURL(c.pr.url);
+    const createdUserString = c.pr.user.login;
+    const commentedUserString = convertUserString(c.commented, false);
+    const approvedUserString = convertUserString(c.approved, true);
 
     return {
       title: `${c.pr.title} ( ${parsed.repo} #${parsed.pull_number} )`,
       title_link: c.pr.html_url,
       fields: [{
         title: (c.approved.length >= 2 ? 'Merge :ok_woman:' : ''),
-        value: 'Commented: ' + (c.commented.length > 0 ? c.commented.map(a => a.user).filter(function (x, i, self) {return self.indexOf(x) === i;}).join(", ") : 'none')
-          + '\nRequested: ' + (c.requested.length > 0 ? c.requested.map(a => a.user).filter(function (x, i, self) {return self.indexOf(x) === i;}).join(", ") : 'none')
-          + '\nApproved: ' + (c.approved.length > 0 ? c.approved.map(a => a.user).filter(function (x, i, self) {return self.indexOf(x) === i;}).join(", ") : 'none :fire:')
+        value: 'Created: ' + createdUserString
+          + '\nCommented: ' + commentedUserString
+          + '\nApproved: ' + approvedUserString
       }]
     }
   });
